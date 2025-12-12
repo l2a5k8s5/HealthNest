@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-const userSchema=mongoose.Schema({
+const User=mongoose.Schema({
     name:{
         type:String,
         required: [true, 'Please add a name'],
@@ -72,4 +72,4 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
   };
 
 
-  export default userSchema;
+  export default User;
