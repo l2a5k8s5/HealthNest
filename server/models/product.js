@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const productScheema= new   mongoose.Schema({
+const product= new   mongoose.Schema({
     name : {
         type : String,
         required: [true, 'Please add Product name'],
@@ -89,5 +89,5 @@ const productScheema= new   mongoose.Schema({
     }, {
       timestamps: true
     });
-productSchema.index({ name: 'text', description: 'text', tags: 'text' });
-export default  productSchema;
+product.index({ name: 'text', description: 'text', tags: 'text' });
+export default  product;
