@@ -90,4 +90,6 @@ const product= new   mongoose.Schema({
       timestamps: true
     });
 product.index({ name: 'text', description: 'text', tags: 'text' });
-export default  product;
+const Product = mongoose.model("Product", product);
+
+export default Product;

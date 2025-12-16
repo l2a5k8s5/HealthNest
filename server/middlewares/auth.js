@@ -57,17 +57,18 @@ export const protect = async (req, res, next) => {
 ;
 
 
-export const authorize=async(req,res,next)=>{
-    return (req,res,next)=>{
-        if(!role.include(req.user.role)){
-            return res.status(403).json({
-                success:false,
-                message:`User role  ${req.User.role} is not authorized to access this route`
-            });
-        }
-        next();
-    };
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `User role ${req.user.role} is not authorized to access this route`
+      });
+    }
+    next();
+  };
 };
+
 
 
 export const generateToken=(id)=>{

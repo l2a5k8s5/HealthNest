@@ -4,7 +4,7 @@ import { generateToken } from "../middlewares/auth.js";
 // ================= REGISTER =================
 export const register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone , role } = req.body;
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -19,6 +19,8 @@ export const register = async (req, res) => {
       email,
       password,
       phone,
+      role: role && (role === 'admin' || role === 'user') ? role : 'user'
+
     });
 
     const token = generateToken(user._id);
@@ -229,6 +231,208 @@ export const deleteAddress = async (req, res) => {
       addresses: user.addresses
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+// ==========================================
+// ADMIN CREATION CONTROLLERS
+// ==========================================
+
+// @desc    Create Admin User (Secure with secret key)
+// @route   POST /api/auth/create-admin
+// @access  Public (Protected by secret key)
+export const createAdmin = async (req, res) => {
+  try {
+    const { name, email, password, phone, adminSecret } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
+      });
+    }
+
+    // Check admin secret key
+    const ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || makhana-enterprise-2024-secret;
+    
+    if (!adminSecret) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin secret key is required'
+      });
+    }
+
+    if (adminSecret !== ADMIN_SECRET) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid admin secret key'
+      });
+    }
+    console.log('Expected Secret:', process.env.ADMIN_SECRET_KEY);
+console.log('Received Secret:', adminSecret);
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // Create admin user
+    const admin = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      role: 'admin'  // Force admin role
+    });
+
+    // Generate JWT token
+    const token = generateToken(admin._id);
+
+    // Send response
+    res.status(201).json({
+      success: true,
+      message: 'Admin user created successfully',
+      token,
+      user: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role  // This will be 'admin'
+      }
+    });
+
+  } catch (error) {
+    console.error('Create Admin Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Create First Admin (No Secret Required - Use Once Only)
+// @route   POST /api/auth/create-first-admin
+// @access  Public (Remove this route after creating first admin)
+export const createFirstAdmin = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+
+    // Check if any admin exists
+    const adminExists = await User.findOne({ role: 'admin' });
+    
+    if (adminExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin already exists. Use create-admin endpoint with secret key.'
+      });
+    }
+
+    // Validate required fields
+    if (!name || !email || !password || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
+      });
+    }
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // Create first admin user
+    const admin = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      role: 'admin'
+    });
+
+    // Generate JWT token
+    const token = generateToken(admin._id);
+
+    // Send response
+    res.status(201).json({
+      success: true,
+      message: 'First admin user created successfully! Please remove this endpoint.',
+      token,
+      user: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Create First Admin Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Promote User to Admin (Admin Only)
+// @route   PUT /api/auth/promote-to-admin/:userId
+// @access  Private/Admin
+export  const promoteToAdmin = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if already admin
+    if (user.role === 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already an admin'
+      });
+    }
+
+    // Promote to admin
+    user.role = 'admin';
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'User promoted to admin successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Promote to Admin Error:', error);
     res.status(500).json({
       success: false,
       message: error.message

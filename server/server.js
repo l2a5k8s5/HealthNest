@@ -2,6 +2,9 @@ import express from "express";
 import connectDb from "./config/db.js";
 import dotenv from "dotenv";
 import authRoute from "../server/routes/authRoute.js"
+import orderRoute from "../server/routes/orderRoute.js";
+import productRoute from "../server/routes/productRoute.js"
+
 dotenv.config({path : "./config/.env"});
 const app = express();
 connectDb();
@@ -15,4 +18,6 @@ app.listen(process.env.PORT ,()=>{
 });
 app.use(express.json());
 
-app.use("/api/auth",authRoute)
+app.use("/api/auth",authRoute);
+app.use("/api/auth",orderRoute);
+app.use("/api/auth",productRoute);
