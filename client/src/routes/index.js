@@ -4,6 +4,8 @@ import Home from './../Pages/Home';
 import Products from './../Pages/Products';
 import Login from './../Pages/Login';
 import Register from './../Pages/Register';
+import AboutUs from "../Pages/About";
+
 
 
 export const publicRoutes=[
@@ -23,5 +25,9 @@ export const publicRoutes=[
     {
         path:"/register",
         element:<Register />,
+    },
+    {
+        path:"/about",
+        element:<AboutUs />,
     }
 ];
