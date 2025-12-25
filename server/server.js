@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import authRoute from "../server/routes/authRoute.js"
 import orderRoute from "../server/routes/orderRoute.js";
 import productRoute from "../server/routes/productRoute.js"
+import cors from "cors"
 
 dotenv.config({path : "./config/.env"});
 const app = express();
@@ -16,6 +17,11 @@ app.get("/", (req, res) => {
 app.listen(process.env.PORT ,()=>{
     console.log(`Server successfully running on port ${process.env.PORT}`);
 });
+
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
 app.use(express.json());
 
 app.use("/api/auth",authRoute);

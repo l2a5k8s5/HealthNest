@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { userRoutes } from './routes/userRoutes';
-// import Navbar
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import { publicRoutes } from './routes/index.js';
