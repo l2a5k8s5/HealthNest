@@ -1,10 +1,11 @@
 import express from "express";
-import { register,login,getMe,updateProfile,updatePassword,addAddress,deleteAddress , createAdmin , createFirstAdmin ,  promoteToAdmin} from './../controllers/authController.js';
+import { register,login,getMe,updateProfile,updatePassword,addAddress,deleteAddress , createAdmin , createFirstAdmin ,  promoteToAdmin, verifyOtp} from './../controllers/authController.js';
 import { protect  , authorize} from "../middlewares/auth.js";
 const router = express.Router();
 
 // Public routes
 router.post('/register',register);
+router.post("/otp-verification",verifyOtp)
 router.post('/login',login);
 
 

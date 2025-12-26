@@ -2,6 +2,7 @@ import User from "../models/user.js";
 import { generateToken } from "../middlewares/auth.js";
 import twilio from "twilio";
 import { sendEmail } from "../utils/sendEmail.js";
+import { sendToken } from "../utils/sendToken.js";
 
 // ✅ Debug: Check if credentials are loaded
 console.log("Twilio Config Check:", {
@@ -106,6 +107,70 @@ export const sendVerificationCode = async (
     throw new Error(`Verification failed: ${error.message}`);
   }
 };
+
+
+export const verifyOtp = async (req, res) => {
+  try {
+    const email = req.body.email?.toLowerCase().trim();
+    const phone = req.body.phone?.replace(/\D/g, "").slice(-10);
+    const otp = req.body.otp;
+
+    // Phone validation
+    if (phone && !/^[6-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number",
+      });
+    }
+
+    const userAllEnteries = await User.find({
+      accountVerified: false,
+      $or: [
+        ...(email ? [{ email }] : []),
+        ...(phone ? [{ phone }] : []),
+      ],
+    }).sort({ createdAt: -1 });
+
+    if (userAllEnteries.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const user = userAllEnteries[0];
+
+    if (!otp || user.verificationCode !== Number(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (Date.now() > new Date(user.verificationCodeExpire).getTime()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    }
+
+    user.accountVerified = true;
+    user.verificationCode = null;
+    user.verificationCodeExpire = null;
+
+    await user.save({ validateModifiedOnly: true });
+
+    sendToken(user, 200, "Account Verified", res);
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
 // ================= REGISTER =================
 export const register = async (req, res) => {
   try {
