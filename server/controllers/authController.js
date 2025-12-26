@@ -1,16 +1,156 @@
 import User from "../models/user.js";
 import { generateToken } from "../middlewares/auth.js";
+import twilio from "twilio";
+import { sendEmail } from "../utils/sendEmail.js";
 
+// ✅ Debug: Check if credentials are loaded
+console.log("Twilio Config Check:", {
+  ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ? "✓ Loaded" : "❌ MISSING",
+  AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ? "✓ Loaded" : "❌ MISSING",
+  PHONE: process.env.TWILIO_PHONE || "❌ MISSING",
+});
+
+// ✅ Initialize Twilio client
+let twilioClient = null;
+
+function getTwilioClient() {
+  if (!twilioClient) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    
+    if (!accountSid || !authToken) {
+      console.error("❌ Twilio credentials missing!");
+      console.log("ACCOUNT_SID:", accountSid || "MISSING");
+      console.log("AUTH_TOKEN:", authToken ? "EXISTS" : "MISSING");
+      throw new Error("Twilio credentials not configured");
+    }
+    
+    twilioClient = twilio(accountSid, authToken);
+    console.log("✓ Twilio client initialized");
+  }
+  return twilioClient;
+}
+
+export const sendVerificationCode = async (
+  verificationMethod,
+  verificationCode,
+  name,
+  email,
+  phone
+) => {
+  try {
+    if (verificationMethod === "email") {
+      const message = generateEmailTemplate(verificationCode);
+
+      await sendEmail({
+        email,
+        subject: "Your Verification Code",
+        message,
+      });
+
+      return {
+        success: true,
+        message: `Verification email sent to ${email}`,
+      };
+    }
+
+    if (verificationMethod === "phone") {
+      // ✅ Get client when needed (after env vars are loaded)
+      const client = getTwilioClient();
+      
+      // Normalize phone number for India
+      let normalizedPhone = phone;
+      if (!normalizedPhone.startsWith("+")) {
+        normalizedPhone = "+91" + normalizedPhone.replace(/^0+/, '');
+      }
+
+      console.log("📞 Attempting to call:", normalizedPhone);
+      console.log("📞 From number:", process.env.TWILIO_PHONE);
+
+      const verificationCodeWithSpace = verificationCode
+        .toString()
+        .split("")
+        .join(" ");
+
+      const call = await client.calls.create({
+        twiml: `<Response><Say voice="alice" language="en-IN">Your verification code is ${verificationCodeWithSpace}. I repeat, your verification code is ${verificationCodeWithSpace}.</Say></Response>`,
+        from: process.env.TWILIO_PHONE,
+        to: normalizedPhone,
+      });
+
+      console.log("✓ Call initiated successfully. SID:", call.sid);
+
+      return { 
+        success: true, 
+        message: "OTP sent via call",
+        callSid: call.sid 
+      };
+    }
+
+    throw new Error("Invalid verification method");
+
+  } catch (error) {
+    console.error("❌ Error sending verification code:", error);
+    
+    // More specific error messages
+    if (error.code === 21608) {
+      throw new Error("Phone number is not verified. Add it to Twilio verified caller IDs.");
+    }
+    if (error.code === 21211) {
+      throw new Error("Invalid 'To' phone number format.");
+    }
+    if (error.code === 21606) {
+      throw new Error("Phone number is not a valid mobile number.");
+    }
+    
+    throw new Error(`Verification failed: ${error.message}`);
+  }
+};
 // ================= REGISTER =================
 export const register = async (req, res) => {
   try {
-    const { name, email, password, phone , role } = req.body;
+    const { name, email, password, phone, role, verificationMethod } = req.body;
+
+    // Validation
+    if (!verificationMethod) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification method is required (email or phone)"
+      });
+    }
+
+    // Phone validation for Indian numbers
+    function ValidatePhoneNumber(phone) {
+      const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile numbers start with 6-9
+      return phoneRegex.test(phone);
+    }
+
+    if (verificationMethod === "phone" && !ValidatePhoneNumber(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid 10-digit Indian phone number"
+      });
+    }
 
     const userExists = await User.findOne({ email });
-    if (userExists) {
+    if (userExists && userExists.accountVerified) {
       return res.status(400).json({
         success: false,
         message: "User with this email already exists",
+      });
+    }
+
+    const registrationAttemptsByUser = await User.find({
+      $or: [
+        { phone, accountVerified: false },
+        { email, accountVerified: false },
+      ],
+    });
+
+    if (registrationAttemptsByUser.length > 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum registration attempts exceeded",
       });
     }
 
@@ -20,14 +160,25 @@ export const register = async (req, res) => {
       password,
       phone,
       role: role && (role === 'admin' || role === 'user') ? role : 'user'
-
     });
+
+    const verificationCode = await user.generateVerificationCode();
+    await user.save();
+
+    // Send verification code
+    const verificationResult = await sendVerificationCode(
+      verificationMethod,
+      verificationCode,
+      name,
+      email,
+      phone
+    );
 
     const token = generateToken(user._id);
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message: `User registered successfully. ${verificationResult.message}`,
       token,
       user: {
         id: user._id,
@@ -38,12 +189,15 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
+
+
 
 // ================= LOGIN =================
 export const login = async (req, res) => {
@@ -439,3 +593,29 @@ export  const promoteToAdmin = async (req, res) => {
     });
   }
 };
+
+
+
+
+
+function generateEmailTemplate(verificationCode){
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+      <h2 style="color: #4CAF50; text-align: center;">Verification Code</h2>
+      <p style="font-size: 16px; color: #333;">Dear User,</p>
+      <p style="font-size: 16px; color: #333;">Your verification code is:</p>
+      <div style="text-align: center; margin: 20px 0;">
+        <span style="display: inline-block; font-size: 24px; font-weight: bold; color: #4CAF50; padding: 10px 20px; border: 1px solid #4CAF50; border-radius: 5px; background-color: #e8f5e9;">
+          ${verificationCode}
+        </span>
+      </div>
+      <p style="font-size: 16px; color: #333;">Please use this code to verify your email address. The code will expire in 10 minutes.</p>
+      <p style="font-size: 16px; color: #333;">If you did not request this, please ignore this email.</p>
+      <footer style="margin-top: 20px; text-align: center; font-size: 14px; color: #999;">
+        <p>Thank you,<br>Your Company Team</p>
+        <p style="font-size: 12px; color: #aaa;">This is an automated message. Please do not reply to this email.</p>
+      </footer>
+    </div>
+  `;
+}
+
