@@ -276,7 +276,7 @@ export const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email , accountVerified : true  }).select("+password");
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -391,6 +391,46 @@ export const updatePassword = async (req, res) => {
     });
   }
 };
+
+// ======================= FORGOT PASSWORD ==============/
+export const forgotPassword=async (req, res,next) => {
+  const user =await User.findOne({email: req.body.email,accountVerified: true});
+  if(!user) {
+    return res.status(404).json({
+      success: false,
+      message:"User Not found",
+    })
+  }
+
+  const resetToken =user.generateResetPasswordToken();
+
+  await user.save({validateBeforeSave: false});
+  const resetPasswordUrl=`${process.env.REACT_APP_API_URL}/password/reset/${resetToken}`;
+
+  const message =`Your reset password token is :  - \n\n ${resetPasswordUrl} \n\n If you have not requested this email then Please Ignore this `;
+  try{
+    sendEmail({email:user.email,
+      subject:"Your site reset password",
+      message
+
+    });
+    return res.status(200).json({
+      success: true,
+      message:`Email sent to ${user.email} successfully` ,
+    })
+
+  }catch(error)
+  {
+    user.resetPasswordToken=undefined;
+    user.resetPasswordExpire=undefined;
+    await user.save({validateBeforeSave:false});
+    return res.status().json({
+      success: false,
+      message : error.message,
+    }) 
+
+  }
+}
 
 // @desc    Add/Update address
 // @route   POST /api/auth/address

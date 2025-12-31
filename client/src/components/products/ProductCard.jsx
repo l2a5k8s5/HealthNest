@@ -8,9 +8,12 @@ import { toast } from 'react-toastify';
 function ProductCard({ product }) {
   const dispatch = useDispatch();
 
+  // Safety check (important for async data)
+  if (!product) return null;
+
   const handleAddToCart = (e) => {
     e.preventDefault();
-    
+
     if (product.stock <= 0) {
       toast.error('Product out of stock');
       return;
@@ -19,30 +22,38 @@ function ProductCard({ product }) {
     const cartItem = {
       product: product._id,
       name: product.name,
-      image: product.images[0]?.url || 'https://via.placeholder.com/400',
-      price: product.discountPrice > 0 ? product.discountPrice : product.price,
+      image: product.images?.[0]?.url || 'https://via.placeholder.com/400',
+      price:
+        product.discountPrice > 0
+          ? product.discountPrice
+          : product.price,
       stock: product.stock,
       quantity: 1,
-      weight: `${product.weight.value}${product.weight.unit}`
+      weight: product.weight
+        ? `${product.weight.value}${product.weight.unit}`
+        : 'N/A',
     };
 
     dispatch(addToCartLocal(cartItem));
     toast.success('Added to cart!');
   };
 
-  const discountPercentage = product.discountPrice > 0 
-    ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
-    : 0;
+  const discountPercentage =
+    product.discountPrice > 0
+      ? Math.round(
+          ((product.price - product.discountPrice) / product.price) * 100
+        )
+      : 0;
 
   return (
     <Link to={`/products/${product._id}`} className="card group">
       <div className="relative overflow-hidden">
-        <img 
-          src={product.images[0]?.url || 'https://via.placeholder.com/400'} 
+        <img
+          src={product.images?.[0]?.url || 'https://via.placeholder.com/400'}
           alt={product.name}
           className="w-full h-64 object-cover group-hover:scale-110 transition duration-300"
         />
-        
+
         {/* Discount Badge */}
         {discountPercentage > 0 && (
           <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
@@ -73,7 +84,7 @@ function ProductCard({ product }) {
       <div className="p-4">
         {/* Category */}
         <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">
-          {product.category}
+          {product.category || 'General'}
         </p>
 
         {/* Product Name */}
@@ -91,7 +102,9 @@ function ProductCard({ product }) {
 
         {/* Weight */}
         <p className="text-sm text-gray-600 mb-3">
-          {product.weight.value}{product.weight.unit}
+          {product.weight
+            ? `${product.weight.value}${product.weight.unit}`
+            : 'Weight not available'}
         </p>
 
         {/* Price */}

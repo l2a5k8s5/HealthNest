@@ -1,5 +1,5 @@
 import express from "express";
-import { register,login,getMe,updateProfile,updatePassword,addAddress,deleteAddress , createAdmin , createFirstAdmin ,  promoteToAdmin, verifyOtp} from './../controllers/authController.js';
+import { register,login,getMe,updateProfile,updatePassword,addAddress,deleteAddress , createAdmin , createFirstAdmin ,  promoteToAdmin, verifyOtp, forgotPassword} from './../controllers/authController.js';
 import { protect  , authorize} from "../middlewares/auth.js";
 const router = express.Router();
 
@@ -25,6 +25,7 @@ router.post('/create-first-admin', createFirstAdmin);
 router.get('/me', protect, getMe);
 router.put('/updateprofile', protect, updateProfile);
 router.put('/updatepassword', protect, updatePassword);
+router.post('/forgotPassword',forgotPassword);
 router.post('/address', protect, addAddress);
 router.delete('/address/:addressId', protect, deleteAddress);
 
