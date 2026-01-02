@@ -45,6 +45,7 @@ import orderRoute from "./routes/orderRoute.js";
 import productRoute from "./routes/productRoute.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import {unVerifiedAccounts} from "./automation/removeUnverifiedAccounts.js"
 
 // ========================================
 // FIX: Proper path resolution for ES modules
@@ -102,6 +103,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoute);
 app.use("/api/orders", orderRoute);
 app.use("/api/products", productRoute);
+unVerifiedAccounts();
 
 // ========================================
 // START SERVER

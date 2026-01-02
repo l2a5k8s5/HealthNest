@@ -5,6 +5,8 @@ import Orders from './../Pages/Orders';
 import OrderDetails from "../Pages/OrdersDetails";
 import Profile from "../Pages/Profile";
 import PrivateRoute from "./PrivateRoute";
+import OTPVerification from "../Pages/OtpVerification";
+import ForgotPassword from "../Pages/ForgotPassword";
 
 
 
@@ -49,5 +51,19 @@ export const userRoutes=[
             </PrivateRoute>
         ),
     },
+    {
+        path:"/otp-verification/:email/:phone",
+        element:(
+            <OTPVerification/>
+        )
+    },
+    {
+        
+            path:"Password/forgot",
+            element:(
+                <ForgotPassword/>
+            )
+        
+    }
 
 ];
